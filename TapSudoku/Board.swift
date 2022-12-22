@@ -21,8 +21,14 @@ struct Board: Equatable {
 
     let size = 9
     let difficulty: Difficulty
+
+    /// `solvedBoard` has all cells filled with valid numbers. It is the originally generated solution to the game.
+    /// `startingBoard` is a copy of solvedBoard with a number of cells set to zero, according to the selected game difficulty level.
+    /// `playerBoard` is the copy of startingBoard with which the user interacts.
+    var solvedBoard = [[Int]]()
     var startingBoard = [[Int]]()
     var playerBoard = [[Int]]()
+
     var cellHints = [[[Int]]]()
     var allCellsValid = [[Bool]]()
     var cellIsValid = [[Bool]]()
@@ -49,11 +55,10 @@ struct Board: Equatable {
                 newRow.append(numbers[position])
             }
 
-            startingBoard.append(newRow)
+            solvedBoard.append(newRow)
             //            print(newRow)
         }
 
-        playerBoard = startingBoard
         cellHints = Array(repeating: Array(repeating: Array([Int]()), count: size), count: size)
         allCellsValid = Array(repeating: Array(repeating: true, count: size), count: size)
         cellIsValid = allCellsValid
@@ -63,12 +68,16 @@ struct Board: Equatable {
         let empties = difficulty.rawValue
         let allCells = 0..<Int(ceil(Double(size * size) / 2))
 
+        startingBoard = solvedBoard
+
         for cell in allCells.shuffled().prefix(upTo: empties) {
             let row = cell / size
             let col = cell % size
-            playerBoard[row][col] = 0
-            playerBoard[8 - row][8 - col] = 0
+            startingBoard[row][col] = 0
+            startingBoard[8 - row][8 - col] = 0
         }
+
+        playerBoard = startingBoard
     }
 
     mutating func validate() {

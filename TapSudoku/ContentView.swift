@@ -8,6 +8,14 @@
 
 import SwiftUI
 
+/// In a significant change to Paul's original code, a guess is now considered "valid" if it does not violate the no duplicates rule within its row, column, or square. This allows us to accommodate a game with multiple valid solutions, which unfortunately the current board generation algorithm does pretty frequently. To warn the user they may be heading down the path of an ultimately invalid solution (even though it is still currently valid), we added the concept of a "caution" color. The end game detector will allow a valid, alternate solution, but in order to avoid getting several moves into that alternate before discovering it will not be valid, we mark the numbers that don't match the original solved game with yellow (if Show Errors is on).
+
+/// The real answer here is to improve the game generator to only offer boards with unique solutions. If that were achieved, then you could go back to the original validation logic (i.e., just check the guess against the original board).
+
+/// I've also added three new number states (in CellView), with appropriate colors. `isGiven` indicates that the number in this cell was part of the originally generated game board. The closure code passed to CellView is now conditional on isGiven being false (i.e., if true, nothing happens if you click on that cell). `isCorrect` indicates whether or not the number in this cell is a valid guess, based on the no duplicates rule. `isCaution` indicates whether the number in this cell differs from the number in this cell on the originally generated game board. "Caution," in the sense that this guess *may* be part of an alternate valid solution, but be careful entering more guesses based on this one--you're more likely headed for a breakdown than an alternate valid solution.
+
+/// Finally, I added the ability to enter pre-guess hints for a cell. "Hint mode" is engaged when `isEnteringHints` is true. In addition to entering hints in the cell, it also changes the selected cell highlight color and the number pad color to indigo (extra visual indications that hint mode is on.)
+
 struct ContentView: View {
     @State private var board = Board(difficulty: .testing)
     let spacing = 1.5
@@ -16,19 +24,10 @@ struct ContentView: View {
     @State private var selectedCol = -1
     @State private var selectedNum = 0
 
-    // In a significant change to Paul's original code, a guess is now considered
-    // "valid" if it does not violate the no duplicates rule within its row, column, or square,
-    // not simply whether it matches the starting game board. This allows us to accommodate
-    // multiple valid solutions for a game. The Board.validate() function is written so that
-    // upon entry of an invalid guess, all instances of that guess within the same row,
-    // column, or square will be marked as invalid.
+
     @State private var solved = false
     @State private var showingNewGame = false
 
-    // I added the ability to enter pre-guess hints for a cell. "Hint mode" is engaged when the Toggle
-    // controlling this variable is on. In addition to entering hints in the cell, it also changes the
-    // selected cell highlight color and the number pad color to indigo (extra visual indications that
-    // hint mode is on.)
     @State private var isEnteringHints = false
 
     // Paul's original code automatically highlighted errors as entered. I didn't like that behavior,
@@ -58,12 +57,16 @@ struct ContentView: View {
                                     number: board.playerBoard[row][col],
                                     selectedNumber: selectedNum,
                                     highlightState: highlightState(for: row, col: col),
+                                    isGiven: board.startingBoard[row][col] > 0,
                                     isCorrect: isShowingErrors ? board.cellIsValid[row][col] : true,
+                                    isCaution: isShowingErrors ? board.playerBoard[row][col] != board.solvedBoard[row][col] : false,
                                     hints: board.cellHints[row][col]
                                 ) {
-                                    selectedRow = row
-                                    selectedCol = col
-                                    selectedNum = board.playerBoard[row][col]
+                                    if board.startingBoard[row][col] == 0 {
+                                        selectedRow = row
+                                        selectedCol = col
+                                        selectedNum = board.playerBoard[row][col]
+                                    }
                                 }
 
                                 if col == 2 || col == 5 {

@@ -28,7 +28,9 @@ struct CellView: View {
     let number: Int
     let selectedNumber: Int
     let highlightState: HighlightState
+    let isGiven: Bool
     let isCorrect: Bool
+    let isCaution: Bool
     let hints: [Int]
     var onSelected: () -> Void
 
@@ -43,6 +45,14 @@ struct CellView: View {
 
     var foregroundColor: Color {
         if isCorrect {
+            if isGiven {
+                return .squareTextGiven
+            }
+
+            if isCaution {
+                return .squareTextCaution
+            }
+            
             if number == selectedNumber {
                 return .squareTextSame
             }
@@ -90,7 +100,7 @@ struct CellView: View {
 
 struct CellView_Previews: PreviewProvider {
     static var previews: some View {
-        let hints = [1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7]
-        CellView(number: 0, selectedNumber: 1, highlightState: .standard, isCorrect: true, hints: hints) { }
+        let hints = [1, 2, 3, 4, 5]
+        CellView(number: 0, selectedNumber: 1, highlightState: .standard, isGiven: false, isCorrect: true, isCaution: false, hints: hints) { }
     }
 }
