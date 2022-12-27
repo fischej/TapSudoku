@@ -6,15 +6,18 @@
 //
 //  Modified from code by Paul Hudson, Hacking With Swift, @twostraws.
 
+/// As Paul alluded in his video on this project, his game board generator, while conceptually simple, all too often created boards with multiple valid solutions. He issued a challenge to create a board creation algorithm that would avoid this. The `Board.generateBoard()` method is my attempt at this. Unfortunately, experience has shown it is also not immune to the multiple valid solutions problem (but it seems to have reduced the symmetry--if that's an improvement). Therefore, I also changed the error indication logic, as follows.
+
+/// To warn the user they may be heading down the path of an ultimately invalid solution (even though it is still currently valid), I added the concept of a "caution" color. The end game detector will allow a valid, alternate solution, but in order to avoid getting several moves into a potential alternate before discovering it will not be valid, we mark the numbers that don't match the original solved game with yellow (if Show Errors is on). True errors (i.e., row, column, or square duplicates) are still shown in red.
+
+/// I've also added three new number states (in CellView), with appropriate colors. `isGiven` indicates that the number in this cell was part of the originally generated game board. The closure code passed to CellView is now conditional on isGiven being false (i.e., if true, nothing happens if you click on that cell). `isCorrect` indicates whether or not the number in this cell is a valid guess, based on the no duplicates rule. `isCaution` indicates whether the number in this cell differs from the number in this cell on the originally generated game board. "Caution," in the sense that this guess *may* be part of an alternate valid solution, but be careful entering more guesses based on this one--you're more likely headed for a breakdown than an alternate valid solution. I used the yellow color for this state, which means the currently-selected number is now white, like all the other entered numbers.
+
+/// Finally, I added the ability to enter pre-guess hints for a cell. "Hint mode" is engaged when `isEnteringHints` is true. In addition to entering hints in the cell, it also changes the selected cell highlight color and the number pad color to indigo for extra visual indications that hint mode is on.
+
+// TODO: Implement Undo logic to take back a guess.
+// TODO: Create a "solver" algorithm to ensure unique solutions.
+
 import SwiftUI
-
-/// In a significant change to Paul's original code, a guess is now considered "valid" if it does not violate the no duplicates rule within its row, column, or square. This allows us to accommodate a game with multiple valid solutions, which unfortunately the current board generation algorithm does pretty frequently. To warn the user they may be heading down the path of an ultimately invalid solution (even though it is still currently valid), we added the concept of a "caution" color. The end game detector will allow a valid, alternate solution, but in order to avoid getting several moves into that alternate before discovering it will not be valid, we mark the numbers that don't match the original solved game with yellow (if Show Errors is on).
-
-/// The real answer here is to improve the game generator to only offer boards with unique solutions. If that were achieved, then you could go back to the original validation logic (i.e., just check the guess against the original board).
-
-/// I've also added three new number states (in CellView), with appropriate colors. `isGiven` indicates that the number in this cell was part of the originally generated game board. The closure code passed to CellView is now conditional on isGiven being false (i.e., if true, nothing happens if you click on that cell). `isCorrect` indicates whether or not the number in this cell is a valid guess, based on the no duplicates rule. `isCaution` indicates whether the number in this cell differs from the number in this cell on the originally generated game board. "Caution," in the sense that this guess *may* be part of an alternate valid solution, but be careful entering more guesses based on this one--you're more likely headed for a breakdown than an alternate valid solution.
-
-/// Finally, I added the ability to enter pre-guess hints for a cell. "Hint mode" is engaged when `isEnteringHints` is true. In addition to entering hints in the cell, it also changes the selected cell highlight color and the number pad color to indigo (extra visual indications that hint mode is on.)
 
 struct ContentView: View {
     @State private var board = Board(difficulty: .testing)
@@ -30,8 +33,7 @@ struct ContentView: View {
 
     @State private var isEnteringHints = false
 
-    // Paul's original code automatically highlighted errors as entered. I didn't like that behavior,
-    // so I made it optional.
+    // Paul's original code automatically highlighted errors as entered. I made it optional.
     @State private var isShowingErrors = false
 
     var body: some View {

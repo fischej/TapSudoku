@@ -41,23 +41,7 @@ struct Board: Equatable {
     }
 
     private mutating func create () {
-        let numbers = Array(1...size).shuffled()
-        let positions = [0, 3, 6, 1, 4, 7, 2, 5, 8]
-
-        let rows = Array([[0, 1, 2].shuffled(), [3, 4, 5].shuffled(), [6, 7, 8].shuffled()].shuffled()).joined()
-        let columns = Array([[0, 1, 2].shuffled(), [3, 4, 5].shuffled(), [6, 7, 8].shuffled()].shuffled()).joined()
-
-        for row in rows {
-            var newRow = [Int]()
-
-            for column in columns {
-                let position = (positions[row] + column) % size
-                newRow.append(numbers[position])
-            }
-
-            solvedBoard.append(newRow)
-            //            print(newRow)
-        }
+        generateBoard()
 
         cellHints = Array(repeating: Array(repeating: Array([Int]()), count: size), count: size)
         allCellsValid = Array(repeating: Array(repeating: true, count: size), count: size)
@@ -80,7 +64,83 @@ struct Board: Equatable {
         playerBoard = startingBoard
     }
 
+    private mutating func generateBoard() {
+        // So the basic idea here is first, set up an array of values 1...9 for every cell on the board (tryValues). Then,
+        // go through every cell in the board, trying (and removing) a random integer from that cell's tryValues. If the
+        // board is valid after that, move on to the next cell; if not, try another tryValues element. If we have exhausted
+        // all elements in tryValues for this cell, reset the cell and its tryValues, and back up to the previous cell.
+        // When we backtrack, we reset the new cell to zero, but *not* its tryValues. We first exhaust the remaining tryValues
+        // (since we know the others were already tried and found invalid). And the logic repeats: if a valid number is found,
+        // move on; if not, backtrack again.
+
+#if DEBUG
+        let startTime = Date()
+#endif
+
+        solvedBoard = Array(repeating: Array(repeating: 0, count: size), count: size)
+
+        var targetRow = 0
+        var targetCol = 0
+        var foundValue = false
+        var tryValues = Array(repeating: Array(repeating: Array(1...9), count: 9), count: 9)
+        var tryValue: Int
+
+        // Not sure how "Swifty" the following code is. Any suggestions for improvement welcomed.
+        while targetRow < size {
+            if solvedBoard[targetRow][targetCol] > 0 {
+                print("Value \(solvedBoard[targetRow][targetCol]) found at row \(targetRow), col \(targetCol), moving on")
+                targetCol += 1
+                if targetCol > 8 {
+                    targetCol = 0
+                    targetRow += 1
+                }
+            }
+            else {
+                print("Working on row \(targetRow) col \(targetCol)")
+                foundValue = false
+
+                while tryValues[targetRow][targetCol].count > 0 {
+                    tryValues[targetRow][targetCol].shuffle()
+                    tryValue = tryValues[targetRow][targetCol].removeLast()
+                    solvedBoard[targetRow][targetCol] = tryValue
+                    if validate(board: solvedBoard) {
+                        foundValue = true
+                        printBoard(board: solvedBoard)
+                        break
+                    }
+                }
+
+                if foundValue == false {
+                    print("No value found, backtracking")
+                    tryValues[targetRow][targetCol] = Array(1...9)
+                    solvedBoard[targetRow][targetCol] = 0
+                    targetCol -= 1
+                    if targetCol < 0 {
+                        targetCol = 8
+                        targetRow -= 1
+                    }
+                    solvedBoard[targetRow][targetCol] = 0
+                }
+            }
+        }
+
+#if DEBUG
+        print("\n*** Elapsed time: \(Date().timeIntervalSince(startTime) * 1000)")
+#endif
+
+    }
+
+    private func printBoard(board: [[Int]]) {
+        print("")
+        for row in 0...8 {
+            print(board[row])
+        }
+    }
+
     mutating func validate() {
+        // This validate function is used in-game. It keeps track of which cells are currently
+        // invalid. Cells with a value of zero (i.e., not yet entered) are considered valid.
+
         cellIsValid = allCellsValid
 
         // For row and column validation, we simply compare each cell to its neighbors
@@ -98,13 +158,12 @@ struct Board: Equatable {
                     }
                 }
             }
-//            print("Row \(row): \(cellIsValid[row])")
         }
 
         // Validate the columns
         for col in 0..<size {
             for row in 0..<size {
-                 if playerBoard[row][col] > 0 {
+                if playerBoard[row][col] > 0 {
                     for nextRow in row + 1..<size {
                         if playerBoard[row][col] == playerBoard[nextRow][col] {
                             cellIsValid[row][col] = false
@@ -112,7 +171,6 @@ struct Board: Equatable {
                         }
                     }
                 }
-//                print("Column \(col): \(cellIsValid[row][col])")
             }
         }
 
@@ -147,11 +205,64 @@ struct Board: Equatable {
                         }
                     }
                 }
-//                print(squareAsRow)
             }
-//            print("Row \(row): \(cellIsValid[row])")
-//            print("Row \(row + 1): \(cellIsValid[row + 1])")
-//            print("Row \(row + 2): \(cellIsValid[row + 2])")
         }
+    }
+
+    private func validate(board: [[Int]]) -> Bool {
+        // This version of the validate function is used by the generate() function. It takes a board and determines
+        // whether or not the entire board is valid, excepting cells that have not been entered yet (value = 0).
+
+        // Validate the rows
+        for row in 0..<size {
+            for col in 0..<size {
+                if board[row][col] > 0 {
+                    for nextCol in col + 1..<size {
+                        if board[row][col] == board[row][nextCol] {
+                            return false
+                        }
+                    }
+                }
+            }
+        }
+
+        // Validate the columns
+        for col in 0..<size {
+            for row in 0..<size {
+                if board[row][col] > 0 {
+                    for nextRow in row + 1..<size {
+                        if board[row][col] == board[nextRow][col] {
+                            return false
+                        }
+                    }
+                }
+            }
+        }
+
+        // Validate the squares
+        for row in stride(from: 0, through: 6, by: 3) {
+            for col in stride(from: 0, through: 6, by: 3) {
+                var squareArray = Array(repeating: 0, count: 9)
+                var squareArrayIndex = 0
+                for rowOffset in 0...2 {
+                    for colOffset in 0...2 {
+                        squareArray[squareArrayIndex] = board[row + rowOffset][col + colOffset]
+                        squareArrayIndex += 1
+                    }
+                }
+
+                for cell in 0..<size {
+                    if squareArray[cell] > 0 {
+                        for nextCell in cell + 1..<size {
+                            if squareArray[cell] == squareArray[nextCell] {
+                                return false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return true
     }
 }
